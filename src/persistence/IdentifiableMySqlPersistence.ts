@@ -23,7 +23,8 @@ import { MySqlPersistence } from './MySqlPersistence';
 
  * ### Configuration parameters ###
  * 
- * - collection:                  (optional) MySQL collection name
+ * - table:                  (optional) MySQL table name
+ * - schema:                 (optional) MySQL schema name
  * - connection(s):    
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -100,13 +101,10 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
      * Creates a new instance of the persistence component.
      * 
      * @param tableName    (optional) a table name.
+     * @param schemaName   (optional) a schema name
      */
-    public constructor(tableName: string) {
-        super(tableName);
-
-        if (tableName == null) {
-            throw new Error("Table name could not be null");
-        }
+    public constructor(tableName: string, schemaName?: string) {
+        super(tableName, schemaName);
     }
 
     /** 
@@ -128,7 +126,7 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
      */
     public async getListByIds(correlationId: string, ids: K[]): Promise<T[]> {
         let params = this.generateParameters(ids);
-        let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id IN(" + params + ")";
+        let query = "SELECT * FROM " + this.quotedTableName() + " WHERE id IN(" + params + ")";
 
         let items = await new Promise<any[]>((resolve, reject) => {
             this._client.query(query, ids, (err, result) => {
@@ -156,7 +154,7 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
      * @returns a requested data item or <code>null</code> if nothing was found.
      */
     public async getOneById(correlationId: string, id: K): Promise<T> {
-        let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+        let query = "SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
         let params = [ id ];
 
         let item = await new Promise<any>((resolve, reject) => {
@@ -228,9 +226,9 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
         values.push(...values);
         values.push(item.id);
 
-        let query = "INSERT INTO " + this.quoteIdentifier(this._tableName) + " (" + columns + ") VALUES (" + params + ")";
+        let query = "INSERT INTO " + this.quotedTableName() + " (" + columns + ") VALUES (" + params + ")";
         query += " ON DUPLICATE KEY UPDATE " + setParams;
-        query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+        query += "; SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
 
         let newItem = await new Promise<any>((resolve, reject) => {
             this._client.query(query, values, (err, result) => {
@@ -244,7 +242,7 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
             });
         });
 
-        this._logger.trace(correlationId, "Set in %s with id = %s", this.quoteIdentifier(this._tableName), item.id);
+        this._logger.trace(correlationId, "Set in %s with id = %s", this.quotedTableName(), item.id);
 
         newItem = this.convertToPublic(newItem);
         return newItem;
@@ -268,8 +266,8 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
         values.push(item.id);
         values.push(item.id);
 
-        let query = "UPDATE " + this.quoteIdentifier(this._tableName) + " SET " + params + " WHERE id=?";
-        query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+        let query = "UPDATE " + this.quotedTableName() + " SET " + params + " WHERE id=?";
+        query += "; SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
 
         let newItem = await new Promise<any>((resolve, reject) => {
             this._client.query(query, values, (err, result) => {
@@ -308,8 +306,8 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
         values.push(id);
         values.push(id);
 
-        let query = "UPDATE " + this.quoteIdentifier(this._tableName) + " SET " + params + " WHERE id=?";
-        query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+        let query = "UPDATE " + this.quotedTableName() + " SET " + params + " WHERE id=?";
+        query += "; SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
 
         let item = await new Promise<any>((resolve, reject) => {
             this._client.query(query, values, (err, result) => {
@@ -339,8 +337,8 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
     public async deleteById(correlationId: string, id: K): Promise<T> {
         let values = [ id, id ];
 
-        let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?"
-        query += "; DELETE FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+        let query = "SELECT * FROM " + this.quotedTableName() + " WHERE id=?"
+        query += "; DELETE FROM " + this.quotedTableName() + " WHERE id=?";
 
         let item = await new Promise<any>((resolve, reject) => {
             this._client.query(query, values, (err, result) => {
@@ -369,7 +367,7 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
      */
     public async deleteByIds(correlationId: string, ids: K[]): Promise<void> {
         let params = this.generateParameters(ids);
-        let query = "DELETE FROM " + this.quoteIdentifier(this._tableName) + " WHERE id IN(" + params + ")";
+        let query = "DELETE FROM " + this.quotedTableName() + " WHERE id IN(" + params + ")";
 
         let count = await new Promise<number>((resolve, reject) => {
             this._client.query(query, ids, (err, result) => {

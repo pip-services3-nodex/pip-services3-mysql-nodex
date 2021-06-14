@@ -27,7 +27,8 @@ import { MySqlConnection } from '../connect/MySqlConnection';
  * 
  * ### Configuration parameters ###
  * 
- * - collection:                  (optional) MySQL collection name
+ * - table:                  (optional) MySQL table name
+ * - schema:                 (optional) MySQL schema name
  * - connection(s):    
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -88,7 +89,8 @@ import { MySqlConnection } from '../connect/MySqlConnection';
 export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IConfigurable, IOpenable, ICleanable {
 
     private static _defaultConfig: ConfigParams = ConfigParams.fromTuples(
-        "collection", null,
+        "table", null,
+        "schema", null,
         "dependencies.connection", "*:connection:mysql:*:1.0",
 
         // connections.*
@@ -134,16 +136,24 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
      * The MySQL table object.
      */
     protected _tableName: string;
-
+    /**
+     * The MySQL schema object.
+     */
+    protected _schemaName: string;
+    /**
+     * Max number of objects in data pages
+     */
     protected _maxPageSize: number = 100;
 
     /**
      * Creates a new instance of the persistence component.
      * 
      * @param tableName    (optional) a table name.
+     * @param schemaName   (optional) a schema name.
      */
-    public constructor(tableName?: string) {
+    public constructor(tableName?: string, schemaName?: string) {
         this._tableName = tableName;
+        this._schemaName = schemaName;
     }
 
     /**
@@ -159,6 +169,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
 
         this._tableName = config.getAsStringWithDefault("collection", this._tableName);
         this._tableName = config.getAsStringWithDefault("table", this._tableName);
+        this._schemaName = config.getAsStringWithDefault("schema", this._schemaName);
         this._maxPageSize = config.getAsIntegerWithDefault("options.max_page_size", this._maxPageSize);
     }
 
@@ -217,9 +228,12 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
             builder += " UNIQUE";
         }
         
-        // builder += " INDEX IF NOT EXISTS " + this.quoteIdentifier(name)
-        builder += " INDEX " + this.quoteIdentifier(name)
-            + " ON " + this.quoteIdentifier(this._tableName);
+        let indexName = this.quoteIdentifier(name);
+        if (this._schemaName != null) {
+            indexName = this.quoteIdentifier(this._schemaName) + "." + indexName;
+        }
+
+        builder += " INDEX " + indexName + " ON " + this.quotedTableName();
 
         if (options.type) {
             builder += " " + options.type;
@@ -236,15 +250,6 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
         builder += "(" + fields + ")";
 
         this.ensureSchema(builder);       
-    }
-
-    /**
-     * Adds a statement to schema definition.
-     * This is a deprecated method. Use ensureSchema instead.
-     * @param schemaStatement a statement to be added to the schema
-     */
-    protected autoCreateObject(schemaStatement: string): void {
-        this.ensureSchema(schemaStatement);
     }
 
     /**
@@ -298,6 +303,19 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
         return '`' + value + '`';
     }
 
+    protected quotedTableName(): string {
+        if (this._tableName == null) {
+            return null;
+        }
+
+        let builder = '';
+        if (this._schemaName != null) {
+            builder += this.quoteIdentifier(this._schemaName) + '.';
+        }
+        builder += this.quoteIdentifier(this._tableName);
+        return builder;
+    }
+
     /**
 	 * Checks if the component is opened.
 	 * 
@@ -349,7 +367,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
             this._opened = true;
     
             this._logger.debug(correlationId, "Connected to MySQL database %s, collection %s",
-                this._databaseName, this.quoteIdentifier(this._tableName));                        
+                this._databaseName, this._tableName);                        
         } catch (ex) {
             this._client == null;
             throw new ConnectionException(
@@ -397,7 +415,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
             throw new Error('Table name is not defined');
         }
 
-        let query = "DELETE FROM " + this.quoteIdentifier(this._tableName);
+        let query = "DELETE FROM " + this.quotedTableName();
 
         await new Promise<void>((resolve, reject) => {
             this._client.query(query, (err, result) => {
@@ -416,6 +434,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
         }
     
         // Check if table exist to determine weither to auto create objects
+        // Todo: include schema
         let query = "SHOW TABLES LIKE '" + this._tableName + "'";
         let exist = await new Promise<boolean>((resolve, reject) => {
             this._client.query(query, (err, result) => {
@@ -522,13 +541,13 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
      * @param paging            (optional) paging parameters
      * @param sort              (optional) sorting JSON object
      * @param select            (optional) projection JSON object
-     * @returms a requested data page.
+     * @returns a requested data page.
      */
     protected async getPageByFilter(correlationId: string, filter: any, paging: PagingParams, 
         sort: any, select: any): Promise<DataPage<T>> {
         
         select = select != null ? select : "*"
-        let query = "SELECT " + select + " FROM " + this.quoteIdentifier(this._tableName);
+        let query = "SELECT " + select + " FROM " + this.quotedTableName();
 
         // Adjust max item count based on configuration
         paging = paging || new PagingParams();
@@ -566,7 +585,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
         items = items.map(this.convertToPublic);
 
         if (pagingEnabled) {
-            let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+            let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
             if (filter != null && filter != "") {
                 query += " WHERE " + filter;
             }
@@ -603,7 +622,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
      * @returns a number of objects that satifsy the filter.
      */
     protected async getCountByFilter(correlationId: string, filter: any): Promise<number> {
-        let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+        let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
         if (filter && filter != "") {
             query += " WHERE " + filter;
         }
@@ -641,7 +660,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
      */
     protected async getListByFilter(correlationId: string, filter: any, sort: any, select: any,): Promise<T[]> {    
         select = select != null ? select : "*"
-        let query = "SELECT " + select + " FROM " + this.quoteIdentifier(this._tableName);
+        let query = "SELECT " + select + " FROM " + this.quotedTableName();
 
         if (filter != null) {
             query += " WHERE " + filter;
@@ -679,7 +698,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
      * @returns a random item that satisfies the filter.
      */
     protected async getOneRandom(correlationId: string, filter: any): Promise<T> {
-        let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+        let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
         if (filter != null) {
             query += " WHERE " + filter;
         }
@@ -695,7 +714,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
             });
         });
            
-        query = "SELECT * FROM " + this.quoteIdentifier(this._tableName);
+        query = "SELECT * FROM " + this.quotedTableName();
 
         if (filter != null) {
             query += " WHERE " + filter;
@@ -741,8 +760,8 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
         let params = this.generateParameters(row);
         let values = this.generateValues(row);
 
-        let query = "INSERT INTO " + this.quoteIdentifier(this._tableName) + " (" + columns + ") VALUES (" + params + ")";
-        //query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName);
+        let query = "INSERT INTO " + this.quotedTableName() + " (" + columns + ") VALUES (" + params + ")";
+        //query += "; SELECT * FROM " + this.quotedTableName();
 
         await new Promise<void>((resolve, reject) => {
             this._client.query(query, values, (err, result) => {
@@ -754,7 +773,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
             });
         });
 
-        this._logger.trace(correlationId, "Created in %s with id = %s", this.quoteIdentifier(this._tableName), row.id);
+        this._logger.trace(correlationId, "Created in %s with id = %s", this.quotedTableName(), row.id);
 
         let newItem = item;
         return newItem;
@@ -770,7 +789,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
      * @param filter            (optional) a filter JSON object.
      */
     public async deleteByFilter(correlationId: string, filter: string): Promise<void> {
-        let query = "DELETE FROM " + this.quoteIdentifier(this._tableName);
+        let query = "DELETE FROM " + this.quotedTableName();
         if (filter != null) {
             query += " WHERE " + filter;
         }

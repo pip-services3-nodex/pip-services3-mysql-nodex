@@ -26,7 +26,8 @@ const MySqlPersistence_1 = require("./MySqlPersistence");
 
  * ### Configuration parameters ###
  *
- * - collection:                  (optional) MySQL collection name
+ * - table:                  (optional) MySQL table name
+ * - schema:                 (optional) MySQL schema name
  * - connection(s):
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -101,12 +102,10 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
      * Creates a new instance of the persistence component.
      *
      * @param tableName    (optional) a table name.
+     * @param schemaName   (optional) a schema name
      */
-    constructor(tableName) {
-        super(tableName);
-        if (tableName == null) {
-            throw new Error("Table name could not be null");
-        }
+    constructor(tableName, schemaName) {
+        super(tableName, schemaName);
     }
     /**
      * Converts the given object from the public partial format.
@@ -127,7 +126,7 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
     getListByIds(correlationId, ids) {
         return __awaiter(this, void 0, void 0, function* () {
             let params = this.generateParameters(ids);
-            let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id IN(" + params + ")";
+            let query = "SELECT * FROM " + this.quotedTableName() + " WHERE id IN(" + params + ")";
             let items = yield new Promise((resolve, reject) => {
                 this._client.query(query, ids, (err, result) => {
                     if (err != null) {
@@ -153,7 +152,7 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
      */
     getOneById(correlationId, id) {
         return __awaiter(this, void 0, void 0, function* () {
-            let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+            let query = "SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
             let params = [id];
             let item = yield new Promise((resolve, reject) => {
                 this._client.query(query, params, (err, result) => {
@@ -217,9 +216,9 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
             let values = this.generateValues(row);
             values.push(...values);
             values.push(item.id);
-            let query = "INSERT INTO " + this.quoteIdentifier(this._tableName) + " (" + columns + ") VALUES (" + params + ")";
+            let query = "INSERT INTO " + this.quotedTableName() + " (" + columns + ") VALUES (" + params + ")";
             query += " ON DUPLICATE KEY UPDATE " + setParams;
-            query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+            query += "; SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
             let newItem = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
                     if (err != null) {
@@ -231,7 +230,7 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
                     resolve(item);
                 });
             });
-            this._logger.trace(correlationId, "Set in %s with id = %s", this.quoteIdentifier(this._tableName), item.id);
+            this._logger.trace(correlationId, "Set in %s with id = %s", this.quotedTableName(), item.id);
             newItem = this.convertToPublic(newItem);
             return newItem;
         });
@@ -253,8 +252,8 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
             let values = this.generateValues(row);
             values.push(item.id);
             values.push(item.id);
-            let query = "UPDATE " + this.quoteIdentifier(this._tableName) + " SET " + params + " WHERE id=?";
-            query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+            let query = "UPDATE " + this.quotedTableName() + " SET " + params + " WHERE id=?";
+            query += "; SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
             let newItem = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
                     if (err != null) {
@@ -289,8 +288,8 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
             let values = this.generateValues(row);
             values.push(id);
             values.push(id);
-            let query = "UPDATE " + this.quoteIdentifier(this._tableName) + " SET " + params + " WHERE id=?";
-            query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+            let query = "UPDATE " + this.quotedTableName() + " SET " + params + " WHERE id=?";
+            query += "; SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
             let item = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
                     if (err != null) {
@@ -317,8 +316,8 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
     deleteById(correlationId, id) {
         return __awaiter(this, void 0, void 0, function* () {
             let values = [id, id];
-            let query = "SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
-            query += "; DELETE FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+            let query = "SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
+            query += "; DELETE FROM " + this.quotedTableName() + " WHERE id=?";
             let item = yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
                     if (err != null) {
@@ -344,7 +343,7 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
     deleteByIds(correlationId, ids) {
         return __awaiter(this, void 0, void 0, function* () {
             let params = this.generateParameters(ids);
-            let query = "DELETE FROM " + this.quoteIdentifier(this._tableName) + " WHERE id IN(" + params + ")";
+            let query = "DELETE FROM " + this.quotedTableName() + " WHERE id IN(" + params + ")";
             let count = yield new Promise((resolve, reject) => {
                 this._client.query(query, ids, (err, result) => {
                     if (err != null) {

@@ -18,7 +18,8 @@ import { IdentifiableMySqlPersistence } from './IdentifiableMySqlPersistence';
 
  * ### Configuration parameters ###
  *
- * - collection:                  (optional) MySQL collection name
+ * - table:                  (optional) MySQL table name
+ * - schema:                 (optional) MySQL schema name
  * - connection(s):
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address

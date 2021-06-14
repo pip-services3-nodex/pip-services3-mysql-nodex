@@ -20,7 +20,8 @@ import { IdentifiableMySqlPersistence } from './IdentifiableMySqlPersistence';
 
  * ### Configuration parameters ###
  * 
- * - collection:                  (optional) MySQL collection name
+ * - table:                  (optional) MySQL table name
+ * - schema:                 (optional) MySQL schema name
  * - connection(s):    
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -107,9 +108,13 @@ export class IdentifiableJsonMySqlPersistence<T extends IIdentifiable<K>, K> ext
      * @param dataType type of the data column (default: JSON)
      */
     protected ensureTable(idType: string = 'VARCHAR(32)', dataType: string = 'JSON') {
-        let query = "CREATE TABLE IF NOT EXISTS " + this.quoteIdentifier(this._tableName)
+        if (this._schemaName != null) {
+            let query = "CREATE SCHENA IF NOT EXISTS " + this.quoteIdentifier(this._schemaName);
+            this.ensureSchema(query);
+        }
+        let query = "CREATE TABLE IF NOT EXISTS " + this.quotedTableName()
             + " (`id` " + idType + " PRIMARY KEY, `data` " + dataType + ")";
-        this.autoCreateObject(query);
+        this.ensureSchema(query);
     }
 
     /** 
@@ -151,8 +156,8 @@ export class IdentifiableJsonMySqlPersistence<T extends IIdentifiable<K>, K> ext
             return null;
         }
 
-        let query = "UPDATE " + this.quoteIdentifier(this._tableName) + " SET `data`=JSON_MERGE_PATCH(data,?) WHERE id=?";
-        query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName) + " WHERE id=?";
+        let query = "UPDATE " + this.quotedTableName() + " SET `data`=JSON_MERGE_PATCH(data,?) WHERE id=?";
+        query += "; SELECT * FROM " + this.quotedTableName() + " WHERE id=?";
         let values = [JSON.stringify(data.getAsObject()), id, id];
 
         let newItem = await new Promise<any>((resolve, reject) => {

@@ -31,7 +31,8 @@ const MySqlConnection_1 = require("../connect/MySqlConnection");
  *
  * ### Configuration parameters ###
  *
- * - collection:                  (optional) MySQL collection name
+ * - table:                  (optional) MySQL table name
+ * - schema:                 (optional) MySQL schema name
  * - connection(s):
  *   - discovery_key:             (optional) a key to retrieve the connection from [[https://pip-services3-nodex.github.io/pip-services3-components-nodex/interfaces/connect.idiscovery.html IDiscovery]]
  *   - host:                      host name or IP address
@@ -94,8 +95,9 @@ class MySqlPersistence {
      * Creates a new instance of the persistence component.
      *
      * @param tableName    (optional) a table name.
+     * @param schemaName   (optional) a schema name.
      */
-    constructor(tableName) {
+    constructor(tableName, schemaName) {
         this._schemaStatements = [];
         /**
          * The dependency resolver.
@@ -105,8 +107,12 @@ class MySqlPersistence {
          * The logger.
          */
         this._logger = new pip_services3_components_nodex_1.CompositeLogger();
+        /**
+         * Max number of objects in data pages
+         */
         this._maxPageSize = 100;
         this._tableName = tableName;
+        this._schemaName = schemaName;
     }
     /**
      * Configures component by passing configuration parameters.
@@ -119,6 +125,7 @@ class MySqlPersistence {
         this._dependencyResolver.configure(config);
         this._tableName = config.getAsStringWithDefault("collection", this._tableName);
         this._tableName = config.getAsStringWithDefault("table", this._tableName);
+        this._schemaName = config.getAsStringWithDefault("schema", this._schemaName);
         this._maxPageSize = config.getAsIntegerWithDefault("options.max_page_size", this._maxPageSize);
     }
     /**
@@ -168,9 +175,11 @@ class MySqlPersistence {
         if (options.unique) {
             builder += " UNIQUE";
         }
-        // builder += " INDEX IF NOT EXISTS " + this.quoteIdentifier(name)
-        builder += " INDEX " + this.quoteIdentifier(name)
-            + " ON " + this.quoteIdentifier(this._tableName);
+        let indexName = this.quoteIdentifier(name);
+        if (this._schemaName != null) {
+            indexName = this.quoteIdentifier(this._schemaName) + "." + indexName;
+        }
+        builder += " INDEX " + indexName + " ON " + this.quotedTableName();
         if (options.type) {
             builder += " " + options.type;
         }
@@ -185,14 +194,6 @@ class MySqlPersistence {
         }
         builder += "(" + fields + ")";
         this.ensureSchema(builder);
-    }
-    /**
-     * Adds a statement to schema definition.
-     * This is a deprecated method. Use ensureSchema instead.
-     * @param schemaStatement a statement to be added to the schema
-     */
-    autoCreateObject(schemaStatement) {
-        this.ensureSchema(schemaStatement);
     }
     /**
      * Adds a statement to schema definition
@@ -239,6 +240,17 @@ class MySqlPersistence {
             return value;
         return '`' + value + '`';
     }
+    quotedTableName() {
+        if (this._tableName == null) {
+            return null;
+        }
+        let builder = '';
+        if (this._schemaName != null) {
+            builder += this.quoteIdentifier(this._schemaName) + '.';
+        }
+        builder += this.quoteIdentifier(this._tableName);
+        return builder;
+    }
     /**
      * Checks if the component is opened.
      *
@@ -276,7 +288,7 @@ class MySqlPersistence {
                 // Recreate objects
                 yield this.createSchema(correlationId);
                 this._opened = true;
-                this._logger.debug(correlationId, "Connected to MySQL database %s, collection %s", this._databaseName, this.quoteIdentifier(this._tableName));
+                this._logger.debug(correlationId, "Connected to MySQL database %s, collection %s", this._databaseName, this._tableName);
             }
             catch (ex) {
                 this._client == null;
@@ -315,7 +327,7 @@ class MySqlPersistence {
             if (this._tableName == null) {
                 throw new Error('Table name is not defined');
             }
-            let query = "DELETE FROM " + this.quoteIdentifier(this._tableName);
+            let query = "DELETE FROM " + this.quotedTableName();
             yield new Promise((resolve, reject) => {
                 this._client.query(query, (err, result) => {
                     if (err != null) {
@@ -333,6 +345,7 @@ class MySqlPersistence {
                 return;
             }
             // Check if table exist to determine weither to auto create objects
+            // Todo: include schema
             let query = "SHOW TABLES LIKE '" + this._tableName + "'";
             let exist = yield new Promise((resolve, reject) => {
                 this._client.query(query, (err, result) => {
@@ -431,12 +444,12 @@ class MySqlPersistence {
      * @param paging            (optional) paging parameters
      * @param sort              (optional) sorting JSON object
      * @param select            (optional) projection JSON object
-     * @returms a requested data page.
+     * @returns a requested data page.
      */
     getPageByFilter(correlationId, filter, paging, sort, select) {
         return __awaiter(this, void 0, void 0, function* () {
             select = select != null ? select : "*";
-            let query = "SELECT " + select + " FROM " + this.quoteIdentifier(this._tableName);
+            let query = "SELECT " + select + " FROM " + this.quotedTableName();
             // Adjust max item count based on configuration
             paging = paging || new pip_services3_commons_nodex_2.PagingParams();
             let skip = paging.getSkip(-1);
@@ -466,7 +479,7 @@ class MySqlPersistence {
             }
             items = items.map(this.convertToPublic);
             if (pagingEnabled) {
-                let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+                let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
                 if (filter != null && filter != "") {
                     query += " WHERE " + filter;
                 }
@@ -502,7 +515,7 @@ class MySqlPersistence {
      */
     getCountByFilter(correlationId, filter) {
         return __awaiter(this, void 0, void 0, function* () {
-            let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+            let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
             if (filter && filter != "") {
                 query += " WHERE " + filter;
             }
@@ -537,7 +550,7 @@ class MySqlPersistence {
     getListByFilter(correlationId, filter, sort, select) {
         return __awaiter(this, void 0, void 0, function* () {
             select = select != null ? select : "*";
-            let query = "SELECT " + select + " FROM " + this.quoteIdentifier(this._tableName);
+            let query = "SELECT " + select + " FROM " + this.quotedTableName();
             if (filter != null) {
                 query += " WHERE " + filter;
             }
@@ -571,7 +584,7 @@ class MySqlPersistence {
      */
     getOneRandom(correlationId, filter) {
         return __awaiter(this, void 0, void 0, function* () {
-            let query = 'SELECT COUNT(*) AS count FROM ' + this.quoteIdentifier(this._tableName);
+            let query = 'SELECT COUNT(*) AS count FROM ' + this.quotedTableName();
             if (filter != null) {
                 query += " WHERE " + filter;
             }
@@ -585,7 +598,7 @@ class MySqlPersistence {
                     resolve(count);
                 });
             });
-            query = "SELECT * FROM " + this.quoteIdentifier(this._tableName);
+            query = "SELECT * FROM " + this.quotedTableName();
             if (filter != null) {
                 query += " WHERE " + filter;
             }
@@ -625,8 +638,8 @@ class MySqlPersistence {
             let columns = this.generateColumns(row);
             let params = this.generateParameters(row);
             let values = this.generateValues(row);
-            let query = "INSERT INTO " + this.quoteIdentifier(this._tableName) + " (" + columns + ") VALUES (" + params + ")";
-            //query += "; SELECT * FROM " + this.quoteIdentifier(this._tableName);
+            let query = "INSERT INTO " + this.quotedTableName() + " (" + columns + ") VALUES (" + params + ")";
+            //query += "; SELECT * FROM " + this.quotedTableName();
             yield new Promise((resolve, reject) => {
                 this._client.query(query, values, (err, result) => {
                     if (err != null) {
@@ -636,7 +649,7 @@ class MySqlPersistence {
                     resolve();
                 });
             });
-            this._logger.trace(correlationId, "Created in %s with id = %s", this.quoteIdentifier(this._tableName), row.id);
+            this._logger.trace(correlationId, "Created in %s with id = %s", this.quotedTableName(), row.id);
             let newItem = item;
             return newItem;
         });
@@ -652,7 +665,7 @@ class MySqlPersistence {
      */
     deleteByFilter(correlationId, filter) {
         return __awaiter(this, void 0, void 0, function* () {
-            let query = "DELETE FROM " + this.quoteIdentifier(this._tableName);
+            let query = "DELETE FROM " + this.quotedTableName();
             if (filter != null) {
                 query += " WHERE " + filter;
             }
@@ -671,7 +684,7 @@ class MySqlPersistence {
     }
 }
 exports.MySqlPersistence = MySqlPersistence;
-MySqlPersistence._defaultConfig = pip_services3_commons_nodex_1.ConfigParams.fromTuples("collection", null, "dependencies.connection", "*:connection:mysql:*:1.0", 
+MySqlPersistence._defaultConfig = pip_services3_commons_nodex_1.ConfigParams.fromTuples("table", null, "schema", null, "dependencies.connection", "*:connection:mysql:*:1.0", 
 // connections.*
 // credential.*
 "options.max_pool_size", 2, "options.keep_alive", 1, "options.connect_timeout", 5000, "options.auto_reconnect", true, "options.max_page_size", 100, "options.debug", true);
