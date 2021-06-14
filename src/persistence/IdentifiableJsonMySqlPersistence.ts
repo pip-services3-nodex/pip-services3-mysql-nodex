@@ -96,9 +96,10 @@ export class IdentifiableJsonMySqlPersistence<T extends IIdentifiable<K>, K> ext
      * Creates a new instance of the persistence component.
      * 
      * @param tableName    (optional) a table name.
+     * @param schemaName    (optional) a schema name.
      */
-    public constructor(tableName: string) {
-        super(tableName);
+    public constructor(tableName: string, schemaName?: string) {
+        super(tableName, schemaName);
     }
 
     /**
@@ -109,7 +110,7 @@ export class IdentifiableJsonMySqlPersistence<T extends IIdentifiable<K>, K> ext
      */
     protected ensureTable(idType: string = 'VARCHAR(32)', dataType: string = 'JSON') {
         if (this._schemaName != null) {
-            let query = "CREATE SCHENA IF NOT EXISTS " + this.quoteIdentifier(this._schemaName);
+            let query = "CREATE SCHEMA IF NOT EXISTS " + this.quoteIdentifier(this._schemaName);
             this.ensureSchema(query);
         }
         let query = "CREATE TABLE IF NOT EXISTS " + this.quotedTableName()

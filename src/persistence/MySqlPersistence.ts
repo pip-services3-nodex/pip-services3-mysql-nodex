@@ -1,5 +1,4 @@
 /** @module persistence */
-import { errorMonitor } from 'events';
 import { IReferenceable } from 'pip-services3-commons-nodex';
 import { IUnreferenceable } from 'pip-services3-commons-nodex';
 import { IReferences } from 'pip-services3-commons-nodex';
@@ -308,11 +307,10 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
             return null;
         }
 
-        let builder = '';
+        let builder = this.quoteIdentifier(this._tableName);
         if (this._schemaName != null) {
-            builder += this.quoteIdentifier(this._schemaName) + '.';
+            builder = this.quoteIdentifier(this._schemaName) + "." + builder;
         }
-        builder += this.quoteIdentifier(this._tableName);
         return builder;
     }
 
@@ -706,7 +704,7 @@ export class MySqlPersistence<T> implements IReferenceable, IUnreferenceable, IC
         let count = await new Promise<number>((resolve, reject) => {
             this._client.query(query, (err, result) => {
                 if (err != null) {
-                    reject(errorMonitor);
+                    reject(err);
                     return;
                 }
                 let count = result && result.length == 1 ? result[0].count : 0;

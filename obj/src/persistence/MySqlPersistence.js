@@ -10,8 +10,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MySqlPersistence = void 0;
-/** @module persistence */
-const events_1 = require("events");
 const pip_services3_commons_nodex_1 = require("pip-services3-commons-nodex");
 const pip_services3_commons_nodex_2 = require("pip-services3-commons-nodex");
 const pip_services3_commons_nodex_3 = require("pip-services3-commons-nodex");
@@ -244,11 +242,10 @@ class MySqlPersistence {
         if (this._tableName == null) {
             return null;
         }
-        let builder = '';
+        let builder = this.quoteIdentifier(this._tableName);
         if (this._schemaName != null) {
-            builder += this.quoteIdentifier(this._schemaName) + '.';
+            builder = this.quoteIdentifier(this._schemaName) + "." + builder;
         }
-        builder += this.quoteIdentifier(this._tableName);
         return builder;
     }
     /**
@@ -591,7 +588,7 @@ class MySqlPersistence {
             let count = yield new Promise((resolve, reject) => {
                 this._client.query(query, (err, result) => {
                     if (err != null) {
-                        reject(events_1.errorMonitor);
+                        reject(err);
                         return;
                     }
                     let count = result && result.length == 1 ? result[0].count : 0;

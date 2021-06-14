@@ -94,8 +94,9 @@ export declare class IdentifiableJsonMySqlPersistence<T extends IIdentifiable<K>
      * Creates a new instance of the persistence component.
      *
      * @param tableName    (optional) a table name.
+     * @param schemaName    (optional) a schema name.
      */
-    constructor(tableName: string);
+    constructor(tableName: string, schemaName?: string);
     /**
      * Adds DML statement to automatically create JSON(B) table
      *

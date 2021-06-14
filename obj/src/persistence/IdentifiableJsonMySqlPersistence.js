@@ -103,9 +103,10 @@ class IdentifiableJsonMySqlPersistence extends IdentifiableMySqlPersistence_1.Id
      * Creates a new instance of the persistence component.
      *
      * @param tableName    (optional) a table name.
+     * @param schemaName    (optional) a schema name.
      */
-    constructor(tableName) {
-        super(tableName);
+    constructor(tableName, schemaName) {
+        super(tableName, schemaName);
     }
     /**
      * Adds DML statement to automatically create JSON(B) table
@@ -115,7 +116,7 @@ class IdentifiableJsonMySqlPersistence extends IdentifiableMySqlPersistence_1.Id
      */
     ensureTable(idType = 'VARCHAR(32)', dataType = 'JSON') {
         if (this._schemaName != null) {
-            let query = "CREATE SCHENA IF NOT EXISTS " + this.quoteIdentifier(this._schemaName);
+            let query = "CREATE SCHEMA IF NOT EXISTS " + this.quoteIdentifier(this._schemaName);
             this.ensureSchema(query);
         }
         let query = "CREATE TABLE IF NOT EXISTS " + this.quotedTableName()
