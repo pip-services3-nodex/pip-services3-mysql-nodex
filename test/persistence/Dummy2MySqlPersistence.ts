@@ -12,6 +12,7 @@ export class Dummy2MySqlPersistence
 {
     public constructor() {
         super('dummies2');
+        this._autoGenerateId = false;
     }
 
     protected defineSchema(): void {

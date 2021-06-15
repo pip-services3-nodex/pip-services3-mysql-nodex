@@ -106,6 +106,10 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
      */
     constructor(tableName, schemaName) {
         super(tableName, schemaName);
+        /**
+         * Flag to turn on auto generation of object ids.
+         */
+        this._autoGenerateId = true;
     }
     /**
      * Converts the given object from the public partial format.
@@ -185,7 +189,7 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
         }
         // Assign unique id
         let newItem = item;
-        if (newItem.id == null) {
+        if (newItem.id == null && this._autoGenerateId) {
             newItem = Object.assign({}, newItem);
             newItem.id = item.id || pip_services3_commons_nodex_1.IdGenerator.nextLong();
         }
@@ -205,7 +209,7 @@ class IdentifiableMySqlPersistence extends MySqlPersistence_1.MySqlPersistence {
                 return null;
             }
             // Assign unique id
-            if (item.id == null) {
+            if (item.id == null && this._autoGenerateId) {
                 item = Object.assign({}, item);
                 item.id = pip_services3_commons_nodex_1.IdGenerator.nextLong();
             }

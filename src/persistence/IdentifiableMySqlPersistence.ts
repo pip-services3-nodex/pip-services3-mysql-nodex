@@ -96,6 +96,10 @@ import { MySqlPersistence } from './MySqlPersistence';
  */
 export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends MySqlPersistence<T>
     implements IWriter<T, K>, IGetter<T, K>, ISetter<T> {
+    /**
+     * Flag to turn on auto generation of object ids.
+     */
+    protected _autoGenerateId: boolean = true;
 
     /**
      * Creates a new instance of the persistence component.
@@ -191,7 +195,7 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
 
         // Assign unique id
         let newItem: any = item;
-        if (newItem.id == null) {
+        if (newItem.id == null && this._autoGenerateId) {
             newItem = Object.assign({}, newItem);
             newItem.id = item.id || IdGenerator.nextLong();
         }
@@ -213,7 +217,7 @@ export class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends
         }
 
         // Assign unique id
-        if (item.id == null) {
+        if (item.id == null && this._autoGenerateId) {
             item = Object.assign({}, item);
             item.id = <any>IdGenerator.nextLong();
         }

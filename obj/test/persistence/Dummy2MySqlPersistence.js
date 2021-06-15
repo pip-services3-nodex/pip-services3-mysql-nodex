@@ -15,6 +15,7 @@ const IdentifiableMySqlPersistence_1 = require("../../src/persistence/Identifiab
 class Dummy2MySqlPersistence extends IdentifiableMySqlPersistence_1.IdentifiableMySqlPersistence {
     constructor() {
         super('dummies2');
+        this._autoGenerateId = false;
     }
     defineSchema() {
         this.clearSchema();

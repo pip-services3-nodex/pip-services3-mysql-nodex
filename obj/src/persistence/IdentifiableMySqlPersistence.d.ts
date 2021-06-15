@@ -92,6 +92,10 @@ import { MySqlPersistence } from './MySqlPersistence';
  */
 export declare class IdentifiableMySqlPersistence<T extends IIdentifiable<K>, K> extends MySqlPersistence<T> implements IWriter<T, K>, IGetter<T, K>, ISetter<T> {
     /**
+     * Flag to turn on auto generation of object ids.
+     */
+    protected _autoGenerateId: boolean;
+    /**
      * Creates a new instance of the persistence component.
      *
      * @param tableName    (optional) a table name.

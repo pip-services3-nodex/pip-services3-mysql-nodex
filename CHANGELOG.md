@@ -6,6 +6,7 @@ Added support for database schemas
 
 ### Features
 * Added schemas to MySqlPersistence, IdentifiableMySqlPersistence, IdentifiableJsonMySqlPersistence
+* Added _autoGenerateId flag to IdentifiableMySqlPersistence
 
 ## <a name="1.0.0"></a> 1.0.0 (2021-05-28) 
 
