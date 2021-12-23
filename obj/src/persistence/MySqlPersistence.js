@@ -458,10 +458,10 @@ class MySqlPersistence {
             if (sort != null) {
                 query += " ORDER BY " + sort;
             }
+            query += " LIMIT " + take;
             if (skip >= 0) {
                 query += " OFFSET " + skip;
             }
-            query += " LIMIT " + take;
             let items = yield new Promise((resolve, reject) => {
                 this._client.query(query, (err, result) => {
                     if (err != null) {
@@ -600,7 +600,7 @@ class MySqlPersistence {
                 query += " WHERE " + filter;
             }
             let pos = Math.trunc(Math.random() * count);
-            query += " OFFSET " + pos + " LIMIT 1";
+            query += " LIMIT 1" + " OFFSET " + pos;
             let item = yield new Promise((resolve, reject) => {
                 this._client.query(query, (err, result) => {
                     if (err != null) {

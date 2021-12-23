@@ -101,6 +101,7 @@ class MySqlConnection {
             connectionLimit: maxPoolSize,
             connectTimeout: connectTimeoutMS,
             insecureAuth: true,
+            //            idleTimeoutMillis: idleTimeoutMS
         };
         let params = '';
         for (let key in settings) {
