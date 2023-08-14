@@ -14,7 +14,7 @@ const assert = require('chai').assert;
 const pip_services3_commons_nodex_1 = require("pip-services3-commons-nodex");
 class DummyPersistenceFixture {
     constructor(persistence) {
-        this._dummy1 = { id: null, key: "Key 1", content: "Content 1" };
+        this._dummy1 = { id: '', key: "Key 1", content: "Content 1" };
         this._dummy2 = { id: null, key: "Key 2", content: "Content 2" };
         this._persistence = persistence;
     }
@@ -24,12 +24,14 @@ class DummyPersistenceFixture {
             let dummy1 = yield this._persistence.create(null, this._dummy1);
             assert.isNotNull(dummy1);
             assert.isNotNull(dummy1.id);
+            assert.isNotEmpty(dummy1.id);
             assert.equal(this._dummy1.key, dummy1.key);
             assert.equal(this._dummy1.content, dummy1.content);
             // Create another dummy
             let dummy2 = yield this._persistence.create(null, this._dummy2);
             assert.isNotNull(dummy2);
             assert.isNotNull(dummy2.id);
+            assert.isNotEmpty(dummy2.id);
             assert.equal(this._dummy2.key, dummy2.key);
             assert.equal(this._dummy2.content, dummy2.content);
             let page = yield this._persistence.getPageByFilter(null, null, null);

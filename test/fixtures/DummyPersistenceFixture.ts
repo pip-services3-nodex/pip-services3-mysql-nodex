@@ -5,7 +5,7 @@ import { Dummy } from './Dummy';
 import { IDummyPersistence } from './IDummyPersistence';
 
 export class DummyPersistenceFixture {
-    private _dummy1: Dummy = { id: null, key: "Key 1", content: "Content 1"};
+    private _dummy1: Dummy = { id: '', key: "Key 1", content: "Content 1"};
     private _dummy2: Dummy = { id: null, key: "Key 2", content: "Content 2"};
 
     private _persistence: IDummyPersistence;
@@ -19,6 +19,7 @@ export class DummyPersistenceFixture {
         let dummy1 = await this._persistence.create(null, this._dummy1);
         assert.isNotNull(dummy1);
         assert.isNotNull(dummy1.id);
+        assert.isNotEmpty(dummy1.id);
         assert.equal(this._dummy1.key, dummy1.key);
         assert.equal(this._dummy1.content, dummy1.content);
 
@@ -26,6 +27,7 @@ export class DummyPersistenceFixture {
         let dummy2 = await this._persistence.create(null, this._dummy2);
         assert.isNotNull(dummy2);
         assert.isNotNull(dummy2.id);
+        assert.isNotEmpty(dummy2.id);
         assert.equal(this._dummy2.key, dummy2.key);
         assert.equal(this._dummy2.content, dummy2.content);
 
